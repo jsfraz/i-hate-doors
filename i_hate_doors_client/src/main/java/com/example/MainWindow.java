@@ -74,7 +74,6 @@ public class MainWindow extends JFrame {
         // basic window setup
         super("I hate doors");
         setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-        setLocationRelativeTo(null);
         setResizable(false);
         setLayout(new GridBagLayout());
 
@@ -127,6 +126,7 @@ public class MainWindow extends JFrame {
         findButton.addActionListener(e -> handleFindButton(e));
         panel1.add(findButton);
         testButton = new JButton("Test");
+        testButton.addActionListener(e -> handleTestButton(e));
         panel1.add(testButton);
 
         // panel2 (action)
@@ -208,6 +208,7 @@ public class MainWindow extends JFrame {
             setIconImage(icon);
 
         pack();
+        setLocationRelativeTo(null);
         setVisible(true);
     }
 
@@ -278,41 +279,66 @@ public class MainWindow extends JFrame {
             }
         } else {
             JOptionPane.showMessageDialog(this, "IP adress is not valid.", "Error", JOptionPane.ERROR_MESSAGE);
+            ipField.setText(SettingsSingleton.GetInstance().getIp());
+            ipOkButton.setEnabled(false);
         }
     }
 
     // find button
     private void handleFindButton(ActionEvent event) {
+        
         findButton.setEnabled(false);
-
+        
+        setVisible(false);
         JDialog searchDialog = new JDialog(this, "Searching");
-        searchDialog.setLocationRelativeTo(null);
         searchDialog.setResizable(false);
         searchDialog.setVisible(true);
         searchDialog.add(getSearchDialgoPanel());
         searchDialog.setModal(true);
         searchDialog.pack();
+        searchDialog.setLocationRelativeTo(this);
         searchDialog.setVisible(true);
         
         MainWindow main = this;
-        //Thread discover = new DiscoverHandler(main, searchDialog, ipField, findButton);
-
         Runnable r = new Runnable() {
             public void run() {
                 new DiscoverHandler(main, searchDialog, ipField, findButton).run();
             }
         };
+        Thread t = new Thread(r);
 
         searchDialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent windowEvent) {
                 super.windowClosing(windowEvent);
-                //FIXME stop thread 
+                //FIXME The method stop() from the type Thread is deprecated
+                System.out.println("Stopped listening for UDP discovery packet.");      // not really :(
                 findButton.setEnabled(true);
+                setVisible(true);
             }
         });
 
-        new Thread(r).start();
+        t.start();
+    }
+
+    // test button
+    private void handleTestButton(ActionEvent event) {
+        testButton.setEnabled(false);
+        boolean success = new MqttHandler(SettingsSingleton.GetInstance().getIp(), "sensor/commands").testConnection();
+        String title;
+        String message;
+        int icon;
+        if (success) {
+            title = "Info";
+            message = "Success!";
+            icon = JOptionPane.INFORMATION_MESSAGE;
+        } else {
+            title = "Error";
+            message = "Unable to connect to host.";
+            icon = JOptionPane.ERROR_MESSAGE;
+        }
+        JOptionPane.showMessageDialog(this, message, title, icon);
+        testButton.setEnabled(true);
     }
 
     // panel for search dialog

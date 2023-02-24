@@ -26,6 +26,7 @@ public class DiscoverHandler {
     private JDialog searchDialog;
     private JTextField ipField;
     private JButton findButton;
+    private DiscoverData data;
     private String oldIp;
 
     public DiscoverHandler(JFrame parentFrame, JDialog searchDialog, JTextField ipField, JButton findButton) {
@@ -44,7 +45,7 @@ public class DiscoverHandler {
     }
 
     public void run() {
-        System.out.println("Listening for discovery packet on port " + port + "...");
+        System.out.println("Listening for UDP discovery packet on port " + port + "...");
         while (true) {
             try {
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
@@ -52,12 +53,19 @@ public class DiscoverHandler {
                 String received = new String(packet.getData(), 0, packet.getLength());
                 buf = new byte[256]; // clearing buffer
                 received = received.replace("\0", "");
-                System.out.println("Received discovery packet...");
+                System.out.println("Receiveing UDP packet...");
                 if (validateJson(received)) {
-                    // TODO send packet for end
+                    System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
+                    SettingsSingleton.GetInstance().setIp(data.ip);
+                    SettingsSingleton.GetInstance().setLastSearchSuccessful(true);
+                    try {
+                        SettingsSingleton.GetInstance().saveSettings();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     break;
                 } else {
-                    System.out.println("Invalid data.");
+                    SettingsSingleton.GetInstance().setLastSearchSuccessful(false);
                 }
 
             } catch (IOException e) {
@@ -70,27 +78,23 @@ public class DiscoverHandler {
 
     private boolean validateJson(String input) {
         try {
-            DiscoverData data = new Gson().fromJson(input, DiscoverData.class);
+            data = new Gson().fromJson(input, DiscoverData.class);
             System.out.println("Valid data!");
-            System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
-            SettingsSingleton.GetInstance().setIp(data.ip);
-            SettingsSingleton.GetInstance().setLastSearchSuccessful(true);
-            try {
-                SettingsSingleton.GetInstance().saveSettings();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
             return true;
         } catch (Exception e) {
-            SettingsSingleton.GetInstance().setLastSearchSuccessful(false);
+            System.out.println("Invalid data.");
             return false;
         }
     }
 
+    private void sendBroadcastEndMessage() {
+        new MqttHandler(SettingsSingleton.GetInstance().getIp(), "sensor/commands").publish(Tools.objectToJson(new Message(MessageType.stopBroadcast)));
+    }
+
     private void finishMessage() {
-        searchDialog.dispose();
-        ipField.setText(SettingsSingleton.GetInstance().getIp());
         findButton.setEnabled(true);
+        parentFrame.setVisible(true);
+        searchDialog.dispose();
 
         String message = "";
         String title = "";
@@ -104,12 +108,15 @@ public class DiscoverHandler {
                 message = "Found!";
                 title = "Info";
                 messageType = JOptionPane.INFORMATION_MESSAGE;
+                ipField.setText(SettingsSingleton.GetInstance().getIp());
+                ipField.setCaretPosition(ipField.getText().length());
             }
         } else {
             message = "Device was not found.";
             title = "Error";
             messageType = JOptionPane.ERROR_MESSAGE;
         }
+        sendBroadcastEndMessage();
         JOptionPane.showMessageDialog(parentFrame, message, title, messageType);
     }
 }
