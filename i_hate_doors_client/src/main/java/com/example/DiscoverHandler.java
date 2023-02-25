@@ -7,12 +7,6 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
-import javax.swing.JButton;
-import javax.swing.JDialog;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JTextField;
-
 import com.google.gson.Gson;
 
 //https://www.baeldung.com/udp-in-java
@@ -22,21 +16,9 @@ public class DiscoverHandler {
     private DatagramSocket socket;
     private byte[] buf = new byte[256];
 
-    private JFrame parentFrame;
-    private JDialog searchDialog;
-    private JTextField ipField;
-    private JButton findButton;
     private DiscoverData data;
-    private String oldIp;
 
-    public DiscoverHandler(JFrame parentFrame, JDialog searchDialog, JTextField ipField, JButton findButton) {
-        this.parentFrame = parentFrame;
-        this.searchDialog = searchDialog;
-        this.ipField = ipField;
-        this.findButton = findButton;
-
-        oldIp = SettingsSingleton.GetInstance().getIp();
-
+    public DiscoverHandler() {
         try {
             socket = new DatagramSocket(port, InetAddress.getByName("0.0.0.0"));
         } catch (SocketException | UnknownHostException e) {
@@ -44,7 +26,7 @@ public class DiscoverHandler {
         }
     }
 
-    public void run() {
+    public DiscoverData run() {
         System.out.println("Listening for UDP discovery packet on port " + port + "...");
         while (true) {
             try {
@@ -55,25 +37,14 @@ public class DiscoverHandler {
                 received = received.replace("\0", "");
                 System.out.println("Receiveing UDP packet...");
                 if (validateJson(received)) {
-                    System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
-                    SettingsSingleton.GetInstance().setIp(data.ip);
-                    SettingsSingleton.GetInstance().setLastSearchSuccessful(true);
-                    try {
-                        SettingsSingleton.GetInstance().saveSettings();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
                     break;
-                } else {
-                    SettingsSingleton.GetInstance().setLastSearchSuccessful(false);
                 }
-
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
         socket.close();
-        finishMessage();
+        return data;
     }
 
     private boolean validateJson(String input) {
@@ -85,38 +56,5 @@ public class DiscoverHandler {
             System.out.println("Invalid data.");
             return false;
         }
-    }
-
-    private void sendBroadcastEndMessage() {
-        new MqttHandler(SettingsSingleton.GetInstance().getIp(), "sensor/commands").publish(Tools.objectToJson(new Message(MessageType.stopBroadcast)));
-    }
-
-    private void finishMessage() {
-        findButton.setEnabled(true);
-        parentFrame.setVisible(true);
-        searchDialog.dispose();
-
-        String message = "";
-        String title = "";
-        int messageType = 0;
-        if (SettingsSingleton.GetInstance().getLastSearchSuccessful()) {
-            if (oldIp.equals(SettingsSingleton.GetInstance().getIp())) {
-                message = "IP address wasn't changed.";
-                title = "Warning";
-                messageType = JOptionPane.WARNING_MESSAGE;
-            } else {
-                message = "Found!";
-                title = "Info";
-                messageType = JOptionPane.INFORMATION_MESSAGE;
-                ipField.setText(SettingsSingleton.GetInstance().getIp());
-                ipField.setCaretPosition(ipField.getText().length());
-            }
-        } else {
-            message = "Device was not found.";
-            title = "Error";
-            messageType = JOptionPane.ERROR_MESSAGE;
-        }
-        sendBroadcastEndMessage();
-        JOptionPane.showMessageDialog(parentFrame, message, title, messageType);
     }
 }

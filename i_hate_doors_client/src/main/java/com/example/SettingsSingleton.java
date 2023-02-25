@@ -57,7 +57,9 @@ public class SettingsSingleton {
     }
 
     public void saveSettings() throws IOException {
+        System.out.println("Saving settings file...");
         instance.settings.saveSettings(settingsFile);
+        System.out.println("Success.");
     }
 
     public String getIp() {
@@ -68,11 +70,43 @@ public class SettingsSingleton {
         this.settings.ip = ip;
     }
 
-    public boolean getLastSearchSuccessful() {
-        return this.settings.lastSearchSuccess;
+    public MuteOption getMuteOption() {
+        return this.settings.muteOption;
     }
 
-    public void setLastSearchSuccessful(boolean value) {
-        this.settings.lastSearchSuccess = value;
+    public void setMuteOption(MuteOption value) {
+        this.settings.muteOption = value;
+    }
+
+    public int getMuteMicKey() {
+        return this.settings.muteMicKey;
+    }
+
+    public void setMuteMicKey(int value) {
+        this.settings.muteMicKey = value;
+    }
+
+    public int getMuteSoundKey() {
+        return this.settings.muteSoundKey;
+    }
+
+    public void setMuteSoundKey(int value) {
+        this.settings.muteSoundKey = value;
+    }
+
+    public boolean getToggleButton() {
+        return this.settings.toggleButton;
+    }
+
+    public void setToggleButton(boolean value) {
+        this.settings.toggleButton = value;
+    }
+
+    public int getToggleKey() {
+        return this.settings.toggleKey;
+    }
+
+    public void setToggleKey(int value) {
+        this.settings.toggleKey = value;
     }
 }

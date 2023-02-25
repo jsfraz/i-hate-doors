@@ -5,11 +5,19 @@ import java.io.IOException;
 
 public class Settings {
     public String ip;
-    public boolean lastSearchSuccess;
+    public MuteOption muteOption;
+    public int muteMicKey;
+    public int muteSoundKey;
+    public boolean toggleButton;
+    public int toggleKey;
 
     public Settings() {
         this.ip = "";
-        this.lastSearchSuccess = false;
+        this.muteOption = MuteOption.microphone;
+        this.muteMicKey = 117;
+        this.muteSoundKey = 118;
+        this.toggleButton = true;
+        this.toggleKey = 119;
     }
 
     public void saveSettings(String settingsFile) throws IOException {

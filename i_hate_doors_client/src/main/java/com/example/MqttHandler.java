@@ -32,23 +32,19 @@ public class MqttHandler {
         options.setKeepAliveInterval(60);
     }
 
-    public void publish(String content) {
+    public void publish(String content) throws MqttException {
         System.out.println("Publishing MQTT message...");
-        try {
-            client.connect(options);
-            // create message and setup QoS
-            MqttMessage message = new MqttMessage(content.getBytes());
-            message.setQos(qos);
-            // publish message
-            client.publish(topic, message);
-            // disconnect
-            client.disconnect();
-            // close client
-            client.close();
-            System.out.println("Success.");
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
+        client.connect(options);
+        // create message and setup QoS
+        MqttMessage message = new MqttMessage(content.getBytes());
+        message.setQos(qos);
+        // publish message
+        client.publish(topic, message);
+        // disconnect
+        client.disconnect();
+        // close client
+        client.close();
+        System.out.println("Success.");
     }
 
     public void subscribe() {
