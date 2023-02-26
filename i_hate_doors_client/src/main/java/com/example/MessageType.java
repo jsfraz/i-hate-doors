@@ -1,5 +1,7 @@
 package com.example;
 
 public enum MessageType {
-    stopBroadcast
+    stopBroadcast,
+    doorOpened,
+    doorClosed
 }

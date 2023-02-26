@@ -329,7 +329,7 @@ public class MainWindow extends JFrame {
                 searchEndMessage();
             }
         });
-        
+
         discoverThread.start();
     }
 
@@ -337,36 +337,38 @@ public class MainWindow extends JFrame {
         searchDialog.dispose();
         discoverThread.stopRunning();
         DiscoverData data = discoverThread.getDisoverData();
-        String message = "";
-        String title = "";
-        int messageType = 0;
-        if (oldIp.equals(data.ip)) {
-            message = "IP address wasn't changed.";
-            title = "Warning";
-            messageType = JOptionPane.WARNING_MESSAGE;
-        } else {
-            System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
-            SettingsSingleton.GetInstance().setIp(data.ip);
-            try {
-                SettingsSingleton.GetInstance().saveSettings();
-            } catch (IOException e) {
-                e.printStackTrace();
+        if (data != null) {
+            String message = "";
+            String title = "";
+            int messageType = 0;
+            if (oldIp.equals(data.ip)) {
+                message = "IP address wasn't changed.";
+                title = "Warning";
+                messageType = JOptionPane.WARNING_MESSAGE;
+            } else {
+                System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
+                SettingsSingleton.GetInstance().setIp(data.ip);
+                try {
+                    SettingsSingleton.GetInstance().saveSettings();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                message = "Found!";
+                title = "Info";
+                messageType = JOptionPane.INFORMATION_MESSAGE;
+                ipField.setText(data.ip);
+                ipField.setCaretPosition(ipField.getText().length());
             }
-            message = "Found!";
-            title = "Info";
-            messageType = JOptionPane.INFORMATION_MESSAGE;
-            ipField.setText(data.ip);
-            ipField.setCaretPosition(ipField.getText().length());
+            sendBroadcastEndMessage(data.ip);
+            JOptionPane.showMessageDialog(this, message, title, messageType);
         }
-        sendBroadcastEndMessage(data.ip);
-        JOptionPane.showMessageDialog(this, message, title, messageType);
         findButton.setEnabled(true);
     }
 
     // send MQTT message for end of discovery broadcasting
     private void sendBroadcastEndMessage(String ip) {
         try {
-            new MqttHandler(ip, "sensor/commands")
+            new Mqtt(ip, "sensor/commands")
                     .publish(Tools.objectToJson(new Message(MessageType.stopBroadcast)));
         } catch (MqttException e) {
             JOptionPane.showMessageDialog(this,
@@ -379,7 +381,7 @@ public class MainWindow extends JFrame {
     // test button
     private void handleTestButton(ActionEvent event) {
         testButton.setEnabled(false);
-        boolean success = new MqttHandler(SettingsSingleton.GetInstance().getIp(), "sensor/commands").testConnection();
+        boolean success = new Mqtt(SettingsSingleton.GetInstance().getIp(), "sensor/commands").testConnection();
         String title;
         String message;
         int icon;

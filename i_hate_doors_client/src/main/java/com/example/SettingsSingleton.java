@@ -109,4 +109,8 @@ public class SettingsSingleton {
     public void setToggleKey(int value) {
         this.settings.toggleKey = value;
     }
+
+    public Settings getSettings() {
+        return this.settings;
+    }
 }
