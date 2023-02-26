@@ -25,7 +25,6 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
@@ -63,6 +62,10 @@ public class MainWindow extends JFrame {
     private JButton okButton;
     private JButton onOffButton;
     private JButton exitButton;
+
+    private String oldIp;
+    private JDialog searchDialog;
+    private DiscoverThread discoverThread;
 
     // regex pattern:
     // https://mkyong.com/regular-expressions/how-to-validate-ip-address-with-regular-expression/
@@ -115,6 +118,12 @@ public class MainWindow extends JFrame {
                         ipOkButton.setEnabled(true);
                     }
                 }
+
+                Matcher matcher = ipv4Pattern.matcher(ipField.getText());
+                if (matcher.matches())
+                    testButton.setEnabled(true);
+                else
+                    testButton.setEnabled(false);
             }
 
             @Override
@@ -132,6 +141,9 @@ public class MainWindow extends JFrame {
         panel1.add(findButton);
         testButton = new JButton("Test");
         testButton.addActionListener(e -> handleTestButton(e));
+        Matcher matcher = ipv4Pattern.matcher(ipField.getText());
+        if (matcher.matches() == false)
+            testButton.setEnabled(false);
         panel1.add(testButton);
 
         // panel2 (action)
@@ -301,71 +313,60 @@ public class MainWindow extends JFrame {
 
     // find button
     private void handleFindButton(ActionEvent event) {
-
         findButton.setEnabled(false);
-
-        setVisible(false);
-        JDialog searchDialog = new JDialog(this, "Searching");
+        oldIp = SettingsSingleton.GetInstance().getIp();
+        searchDialog = new JDialog(this, "Searching");
+        discoverThread = new DiscoverThread(this);
         searchDialog.setResizable(false);
-        searchDialog.setVisible(true);
         searchDialog.add(getSearchDialgoPanel());
-        searchDialog.setModal(true);
-        searchDialog.pack();
         searchDialog.setLocationRelativeTo(this);
+        searchDialog.pack();
         searchDialog.setVisible(true);
-
-        MainWindow mainFrame = this;
-        Runnable r = new Runnable() {
-            public void run() {
-                String oldIp = SettingsSingleton.GetInstance().getIp();
-                DiscoverData data = new DiscoverHandler().run();
-                System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
-                SettingsSingleton.GetInstance().setIp(data.ip);
-                try {
-                    SettingsSingleton.GetInstance().saveSettings();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                findButton.setEnabled(true);
-                mainFrame.setVisible(true);
-                searchDialog.dispose();
-                String message = "";
-                String title = "";
-                int messageType = 0;
-                if (oldIp.equals(SettingsSingleton.GetInstance().getIp())) {
-                    message = "IP address wasn't changed.";
-                    title = "Warning";
-                    messageType = JOptionPane.WARNING_MESSAGE;
-                } else {
-                    message = "Found!";
-                    title = "Info";
-                    messageType = JOptionPane.INFORMATION_MESSAGE;
-                    ipField.setText(SettingsSingleton.GetInstance().getIp());
-                    ipField.setCaretPosition(ipField.getText().length());
-                }
-                sendBroadcastEndMessage();
-                JOptionPane.showMessageDialog(mainFrame, message, title, messageType);
-            }
-        };
-        Thread t = new Thread(r);
-
         searchDialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent windowEvent) {
                 super.windowClosing(windowEvent);
-                // FIXME add stopping thread
-                System.out.println("Stopped listening for UDP discovery packet."); // not really :(
-                findButton.setEnabled(true);
-                setVisible(true);
+                searchEndMessage();
             }
         });
-
-        t.start();
+        
+        discoverThread.start();
     }
 
-    private void sendBroadcastEndMessage() {
+    public void searchEndMessage() {
+        searchDialog.dispose();
+        discoverThread.stopRunning();
+        DiscoverData data = discoverThread.getDisoverData();
+        String message = "";
+        String title = "";
+        int messageType = 0;
+        if (oldIp.equals(data.ip)) {
+            message = "IP address wasn't changed.";
+            title = "Warning";
+            messageType = JOptionPane.WARNING_MESSAGE;
+        } else {
+            System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
+            SettingsSingleton.GetInstance().setIp(data.ip);
+            try {
+                SettingsSingleton.GetInstance().saveSettings();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            message = "Found!";
+            title = "Info";
+            messageType = JOptionPane.INFORMATION_MESSAGE;
+            ipField.setText(data.ip);
+            ipField.setCaretPosition(ipField.getText().length());
+        }
+        sendBroadcastEndMessage(data.ip);
+        JOptionPane.showMessageDialog(this, message, title, messageType);
+        findButton.setEnabled(true);
+    }
+
+    // send MQTT message for end of discovery broadcasting
+    private void sendBroadcastEndMessage(String ip) {
         try {
-            new MqttHandler(SettingsSingleton.GetInstance().getIp(), "sensor/commands")
+            new MqttHandler(ip, "sensor/commands")
                     .publish(Tools.objectToJson(new Message(MessageType.stopBroadcast)));
         } catch (MqttException e) {
             JOptionPane.showMessageDialog(this,
@@ -388,7 +389,7 @@ public class MainWindow extends JFrame {
             icon = JOptionPane.INFORMATION_MESSAGE;
         } else {
             title = "Error";
-            message = "Unable to connect to host.";
+            message = "Unable to connect to MQTT broker. Verify that service is running or check your configuration.";
             icon = JOptionPane.ERROR_MESSAGE;
         }
         JOptionPane.showMessageDialog(this, message, title, icon);
@@ -642,15 +643,7 @@ public class MainWindow extends JFrame {
         JPanel dialogPanel = new JPanel();
         dialogPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         this.add(dialogPanel);
-        // https://stackoverflow.com/questions/7634402/creating-a-nice-loading-animation
-        // https://stackoverflow.com/questions/5895829/resizing-image-in-java
-        // https://icons8.com/icon/43761/hourglass
-        // FIXME no icon after compiling and running on Windows (shitty system as
-        // always, definetly not my own fault)
-        ImageIcon loadingIcon = new ImageIcon(
-                new ImageIcon("src/main/resources/hourglass.png").getImage().getScaledInstance(32,
-                        32, Image.SCALE_DEFAULT));
-        JLabel loadingLabel = new JLabel(" Searching... ", loadingIcon, JLabel.CENTER);
+        JLabel loadingLabel = new JLabel(" Searching... ", JLabel.CENTER);
         loadingLabel.setSize(50, 50);
         dialogPanel.add(loadingLabel);
         return dialogPanel;

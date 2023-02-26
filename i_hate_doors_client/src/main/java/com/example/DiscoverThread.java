@@ -11,14 +11,18 @@ import com.google.gson.Gson;
 
 //https://www.baeldung.com/udp-in-java
 
-public class DiscoverHandler {
+public class DiscoverThread extends Thread {
     private int port = 52375;
     private DatagramSocket socket;
     private byte[] buf = new byte[256];
 
+    private MainWindow mainWindow;
     private DiscoverData data;
+    private boolean running;
 
-    public DiscoverHandler() {
+    public DiscoverThread(MainWindow mainWidow) {
+        this.mainWindow = mainWidow;
+        running = true;
         try {
             socket = new DatagramSocket(port, InetAddress.getByName("0.0.0.0"));
         } catch (SocketException | UnknownHostException e) {
@@ -26,9 +30,9 @@ public class DiscoverHandler {
         }
     }
 
-    public DiscoverData run() {
+    public void run() {
         System.out.println("Listening for UDP discovery packet on port " + port + "...");
-        while (true) {
+        while (running) {
             try {
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 socket.receive(packet);
@@ -37,14 +41,14 @@ public class DiscoverHandler {
                 received = received.replace("\0", "");
                 System.out.println("Receiveing UDP packet...");
                 if (validateJson(received)) {
+                    stopRunning();
+                    mainWindow.searchEndMessage();
                     break;
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        socket.close();
-        return data;
     }
 
     private boolean validateJson(String input) {
@@ -56,5 +60,15 @@ public class DiscoverHandler {
             System.out.println("Invalid data.");
             return false;
         }
+    }
+
+    public void stopRunning() {
+        running = false;
+        socket.close();     // after stopping throws error, but works :)
+        System.out.println("Stopped listening for UDP discovery packet.");
+    }
+
+    public DiscoverData getDisoverData() {
+        return data;
     }
 }
