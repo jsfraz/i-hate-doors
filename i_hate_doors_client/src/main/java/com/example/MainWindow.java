@@ -67,6 +67,10 @@ public class MainWindow extends JFrame {
     private JDialog searchDialog;
     private DiscoverThread discoverThread;
 
+    private boolean bindingMuteMic = false;
+    private boolean bindingMuteSound = false;
+    private boolean bindingToggle = false;
+
     // regex pattern:
     // https://mkyong.com/regular-expressions/how-to-validate-ip-address-with-regular-expression/
     private static final Pattern ipv4Pattern = Pattern
@@ -440,126 +444,136 @@ public class MainWindow extends JFrame {
 
     // mute mic bind button
     private void handleMuteMicBindButton(ActionEvent event) {
-        muteMicBindButton.setText("   ");
-        pack();
-        Color originalColor = muteMicBindButton.getBackground();
-        muteMicBindButton.setBackground(Color.LIGHT_GRAY);
-        JFrame mainFrame = this;
-        muteMicBindButton.addKeyListener(new KeyListener() {
+        if (bindingMuteMic == false) {
+            bindingMuteMic = true;
+            muteMicBindButton.setText("   ");
+            pack();
+            Color originalColor = muteMicBindButton.getBackground();
+            muteMicBindButton.setBackground(Color.LIGHT_GRAY);
+            JFrame mainFrame = this;
+            muteMicBindButton.addKeyListener(new KeyListener() {
 
-            @Override
-            public void keyPressed(KeyEvent arg0) {
-                // nothing
-            }
-
-            @Override
-            public void keyReleased(KeyEvent arg0) {
-                int keyCode = arg0.getKeyCode();
-                if (keyCode != KeyEvent.VK_ESCAPE) {
-                    if (keyCode != SettingsSingleton.GetInstance().getMuteSoundKey()
-                            && keyCode != SettingsSingleton.GetInstance().getToggleKey()) {
-                        SettingsSingleton.GetInstance().setMuteMicKey(keyCode);
-                        try {
-                            SettingsSingleton.GetInstance().saveSettings();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    } else
-                        JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
-                                JOptionPane.ERROR_MESSAGE);
+                @Override
+                public void keyPressed(KeyEvent arg0) {
+                    // nothing
                 }
-                muteMicBindButton.setBackground(originalColor);
-                setButtonTexts();
-                muteMicBindButton.removeKeyListener(this);
-                FocusListener[] focusListeners = muteMicBindButton.getFocusListeners();
-                if (focusListeners.length == 1)
-                    muteMicBindButton.removeFocusListener(focusListeners[0]);
-            }
 
-            @Override
-            public void keyTyped(KeyEvent arg0) {
-                // nothing as well
-            }
+                @Override
+                public void keyReleased(KeyEvent arg0) {
+                    int keyCode = arg0.getKeyCode();
+                    if (keyCode != KeyEvent.VK_ESCAPE) {
+                        if (keyCode != SettingsSingleton.GetInstance().getMuteSoundKey()
+                                && keyCode != SettingsSingleton.GetInstance().getToggleKey()) {
+                            SettingsSingleton.GetInstance().setMuteMicKey(keyCode);
+                            try {
+                                SettingsSingleton.GetInstance().saveSettings();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        } else
+                            JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                    }
+                    muteMicBindButton.setBackground(originalColor);
+                    setButtonTexts();
+                    muteMicBindButton.removeKeyListener(this);
+                    FocusListener[] focusListeners = muteMicBindButton.getFocusListeners();
+                    if (focusListeners.length == 1)
+                        muteMicBindButton.removeFocusListener(focusListeners[0]);
+                    bindingMuteMic = false;
+                }
 
-        });
-        muteMicBindButton.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent arg0) {
-                // nothing
-            }
+                @Override
+                public void keyTyped(KeyEvent arg0) {
+                    // nothing as well
+                }
 
-            @Override
-            public void focusLost(FocusEvent arg0) {
-                muteMicBindButton.setBackground(originalColor);
-                setButtonTexts();
-                muteMicBindButton.removeFocusListener(this);
-                KeyListener[] keyListeners = muteMicBindButton.getKeyListeners();
-                if (keyListeners.length == 1)
-                    muteMicBindButton.removeKeyListener(keyListeners[0]);
-            }
-        });
+            });
+            muteMicBindButton.addFocusListener(new FocusListener() {
+                @Override
+                public void focusGained(FocusEvent arg0) {
+                    // nothing
+                }
+
+                @Override
+                public void focusLost(FocusEvent arg0) {
+                    bindingMuteMic = false;
+                    muteMicBindButton.setBackground(originalColor);
+                    setButtonTexts();
+                    muteMicBindButton.removeFocusListener(this);
+                    KeyListener[] keyListeners = muteMicBindButton.getKeyListeners();
+                    if (keyListeners.length == 1)
+                        muteMicBindButton.removeKeyListener(keyListeners[0]);
+                }
+            });
+        }
     }
 
     // mute sound bind button
     private void handleMuteSoundBindButton(ActionEvent event) {
-        muteSoundBindButton.setText("   ");
-        pack();
-        Color originalColor = muteSoundBindButton.getBackground();
-        muteSoundBindButton.setBackground(Color.LIGHT_GRAY);
-        JFrame mainFrame = this;
-        muteSoundBindButton.addKeyListener(new KeyListener() {
+        if (bindingMuteSound == false) {
+            bindingMuteSound = true;
+            muteSoundBindButton.setText("   ");
+            pack();
+            Color originalColor = muteSoundBindButton.getBackground();
+            muteSoundBindButton.setBackground(Color.LIGHT_GRAY);
+            JFrame mainFrame = this;
+            muteSoundBindButton.addKeyListener(new KeyListener() {
 
-            @Override
-            public void keyPressed(KeyEvent arg0) {
-                // nothing
-            }
-
-            @Override
-            public void keyReleased(KeyEvent arg0) {
-                int keyCode = arg0.getKeyCode();
-                if (keyCode != KeyEvent.VK_ESCAPE) {
-                    if (keyCode != SettingsSingleton.GetInstance().getMuteMicKey()
-                            && keyCode != SettingsSingleton.GetInstance().getToggleKey()) {
-                        SettingsSingleton.GetInstance().setMuteSoundKey(keyCode);
-                        try {
-                            SettingsSingleton.GetInstance().saveSettings();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    } else
-                        JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
-                                JOptionPane.ERROR_MESSAGE);
+                @Override
+                public void keyPressed(KeyEvent arg0) {
+                    // nothing
                 }
-                muteSoundBindButton.setBackground(originalColor);
-                setButtonTexts();
-                muteSoundBindButton.removeKeyListener(this);
-                FocusListener[] focusListeners = muteSoundBindButton.getFocusListeners();
-                if (focusListeners.length == 1)
-                    muteSoundBindButton.removeFocusListener(focusListeners[0]);
-            }
 
-            @Override
-            public void keyTyped(KeyEvent arg0) {
-                // nothing as well
-            }
+                @Override
+                public void keyReleased(KeyEvent arg0) {
+                    int keyCode = arg0.getKeyCode();
+                    if (keyCode != KeyEvent.VK_ESCAPE) {
+                        if (keyCode != SettingsSingleton.GetInstance().getMuteMicKey()
+                                && keyCode != SettingsSingleton.GetInstance().getToggleKey()) {
+                            SettingsSingleton.GetInstance().setMuteSoundKey(keyCode);
+                            try {
+                                SettingsSingleton.GetInstance().saveSettings();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        } else
+                            JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                    }
+                    muteSoundBindButton.setBackground(originalColor);
+                    setButtonTexts();
+                    muteSoundBindButton.removeKeyListener(this);
+                    FocusListener[] focusListeners = muteSoundBindButton.getFocusListeners();
+                    if (focusListeners.length == 1)
+                        muteSoundBindButton.removeFocusListener(focusListeners[0]);
+                    bindingMuteSound = false;
+                }
 
-        });
-        muteSoundBindButton.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent arg0) {
-                // nothing
-            }
+                @Override
+                public void keyTyped(KeyEvent arg0) {
+                    // nothing as well
+                }
 
-            @Override
-            public void focusLost(FocusEvent arg0) {
-                muteSoundBindButton.setBackground(originalColor);
-                setButtonTexts();
-                muteSoundBindButton.removeFocusListener(this);
-                KeyListener[] keyListeners = muteSoundBindButton.getKeyListeners();
-                if (keyListeners.length == 1)
-                    muteSoundBindButton.removeKeyListener(keyListeners[0]);
-            }
-        });
+            });
+            muteSoundBindButton.addFocusListener(new FocusListener() {
+                @Override
+                public void focusGained(FocusEvent arg0) {
+                    // nothing
+                }
+
+                @Override
+                public void focusLost(FocusEvent arg0) {
+                    bindingMuteSound = false;
+                    muteSoundBindButton.setBackground(originalColor);
+                    setButtonTexts();
+                    muteSoundBindButton.removeFocusListener(this);
+                    KeyListener[] keyListeners = muteSoundBindButton.getKeyListeners();
+                    if (keyListeners.length == 1)
+                        muteSoundBindButton.removeKeyListener(keyListeners[0]);
+                }
+            });
+        }
     }
 
     // toggle key radio
@@ -580,64 +594,69 @@ public class MainWindow extends JFrame {
 
     // toggle bind button
     private void handleToggleBindButton(ActionEvent event) {
-        toggleBindButton.setText("   ");
-        pack();
-        Color originalColor = toggleBindButton.getBackground();
-        toggleBindButton.setBackground(Color.LIGHT_GRAY);
-        JFrame mainFrame = this;
-        toggleBindButton.addKeyListener(new KeyListener() {
+        if (bindingToggle == false) {
+            bindingToggle = true;
+            toggleBindButton.setText("   ");
+            pack();
+            Color originalColor = toggleBindButton.getBackground();
+            toggleBindButton.setBackground(Color.LIGHT_GRAY);
+            JFrame mainFrame = this;
+            toggleBindButton.addKeyListener(new KeyListener() {
 
-            @Override
-            public void keyPressed(KeyEvent arg0) {
-                // nothing
-            }
-
-            @Override
-            public void keyReleased(KeyEvent arg0) {
-                int keyCode = arg0.getKeyCode();
-                if (keyCode != KeyEvent.VK_ESCAPE) {
-                    if (keyCode != SettingsSingleton.GetInstance().getMuteMicKey()
-                            && keyCode != SettingsSingleton.GetInstance().getMuteSoundKey()) {
-                        SettingsSingleton.GetInstance().setToggleKey(keyCode);
-                        try {
-                            SettingsSingleton.GetInstance().saveSettings();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    } else
-                        JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
-                                JOptionPane.ERROR_MESSAGE);
+                @Override
+                public void keyPressed(KeyEvent arg0) {
+                    // nothing
                 }
-                toggleBindButton.setBackground(originalColor);
-                setButtonTexts();
-                toggleBindButton.removeKeyListener(this);
-                FocusListener[] focusListeners = toggleBindButton.getFocusListeners();
-                if (focusListeners.length == 1)
-                    toggleBindButton.removeFocusListener(focusListeners[0]);
-            }
 
-            @Override
-            public void keyTyped(KeyEvent arg0) {
-                // nothing as well
-            }
+                @Override
+                public void keyReleased(KeyEvent arg0) {
+                    int keyCode = arg0.getKeyCode();
+                    if (keyCode != KeyEvent.VK_ESCAPE) {
+                        if (keyCode != SettingsSingleton.GetInstance().getMuteMicKey()
+                                && keyCode != SettingsSingleton.GetInstance().getMuteSoundKey()) {
+                            SettingsSingleton.GetInstance().setToggleKey(keyCode);
+                            try {
+                                SettingsSingleton.GetInstance().saveSettings();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        } else
+                            JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                    }
+                    toggleBindButton.setBackground(originalColor);
+                    setButtonTexts();
+                    toggleBindButton.removeKeyListener(this);
+                    FocusListener[] focusListeners = toggleBindButton.getFocusListeners();
+                    if (focusListeners.length == 1)
+                        toggleBindButton.removeFocusListener(focusListeners[0]);
+                    bindingToggle = false;
+                }
 
-        });
-        toggleBindButton.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent arg0) {
-                // nothing
-            }
+                @Override
+                public void keyTyped(KeyEvent arg0) {
+                    // nothing as well
+                }
 
-            @Override
-            public void focusLost(FocusEvent arg0) {
-                toggleBindButton.setBackground(originalColor);
-                setButtonTexts();
-                toggleBindButton.removeFocusListener(this);
-                KeyListener[] keyListeners = toggleBindButton.getKeyListeners();
-                if (keyListeners.length == 1)
-                    toggleBindButton.removeKeyListener(keyListeners[0]);
-            }
-        });
+            });
+            toggleBindButton.addFocusListener(new FocusListener() {
+                @Override
+                public void focusGained(FocusEvent arg0) {
+                    // nothing
+                }
+
+                @Override
+                public void focusLost(FocusEvent arg0) {
+                    toggleBindButton.setBackground(originalColor);
+                    setButtonTexts();
+                    toggleBindButton.removeFocusListener(this);
+                    KeyListener[] keyListeners = toggleBindButton.getKeyListeners();
+                    if (keyListeners.length == 1)
+                        toggleBindButton.removeKeyListener(keyListeners[0]);
+                    bindingToggle = false;
+                }
+            });
+        }
     }
 
     // panel for search dialog
