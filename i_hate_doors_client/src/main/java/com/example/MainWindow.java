@@ -334,27 +334,32 @@ public class MainWindow extends JFrame {
 
     // find button
     private void handleFindButton(ActionEvent event) {
-        findButton.setEnabled(false);
-        oldIp = SettingsSingleton.GetInstance().getIp();
-        searchDialog = new JDialog(this, "Searching");
         discoverThread = new DiscoverThread(this);
-        searchDialog.setResizable(false);
-        searchDialog.add(getSearchDialgoPanel());
-        searchDialog.setLocationRelativeTo(this);
-        searchDialog.pack();
-        searchDialog.setVisible(true);
+        oldIp = SettingsSingleton.GetInstance().getIp();
+
+        searchDialog = new JDialog(this, "Searching");
         searchDialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent windowEvent) {
                 super.windowClosing(windowEvent);
                 searchEndMessage();
             }
-        });
 
-        discoverThread.start();
+            @Override
+            public void windowOpened(WindowEvent windowEvent) {
+                discoverThread.start();
+            }
+        });
+        searchDialog.setModal(true);
+        searchDialog.setResizable(false);
+        searchDialog.add(getSearchDialgoPanel());
+        searchDialog.setLocationRelativeTo(this);
+        searchDialog.pack();
+        searchDialog.setVisible(true);
     }
 
     public void searchEndMessage() {
+        discoverThread.stopRunning();
         searchDialog.dispose();
         DiscoverData data = discoverThread.getDiscoverData();
         if (data != null) {
@@ -387,7 +392,6 @@ public class MainWindow extends JFrame {
             JOptionPane.showMessageDialog(null, message, title, messageType);
             testButton.setEnabled(true);
         }
-        findButton.setEnabled(true);
     }
 
     // send MQTT message for end of discovery broadcasting
