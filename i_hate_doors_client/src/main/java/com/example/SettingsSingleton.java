@@ -5,8 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Scanner;
 
-import com.google.gson.Gson;
-
 public class SettingsSingleton {
     private static SettingsSingleton instance;
     private static final String settingsFile = System.getProperty("user.dir") + "/settings.json";
@@ -25,7 +23,7 @@ public class SettingsSingleton {
                 try {
                     System.out.println("Reading settings from file...");
                     String json = readSettingsJson();
-                    instance.settings = new Gson().fromJson(json, Settings.class);
+                    instance.settings = Tools.settingsFromJson(json);
                     System.out.println("Success.");
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();

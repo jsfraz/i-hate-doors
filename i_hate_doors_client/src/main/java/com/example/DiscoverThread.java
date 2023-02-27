@@ -7,8 +7,6 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
-import com.google.gson.Gson;
-
 //https://www.baeldung.com/udp-in-java
 
 public class DiscoverThread extends Thread {
@@ -22,28 +20,31 @@ public class DiscoverThread extends Thread {
 
     public DiscoverThread(MainWindow mainWidow) {
         this.mainWindow = mainWidow;
-        running = true;
+        this.running = true;
         try {
-            socket = new DatagramSocket(port, InetAddress.getByName("0.0.0.0"));
+            this.socket = new DatagramSocket(this.port, InetAddress.getByName("0.0.0.0"));
         } catch (SocketException | UnknownHostException e) {
             e.printStackTrace();
         }
     }
 
     public void run() {
-        System.out.println("Listening for UDP discovery packet on port " + port + "...");
-        while (running) {
+        System.out.println("Listening for UDP discovery packet on port " + this.port + "...");
+        while (this.running) {
             try {
-                DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                socket.receive(packet);
+                DatagramPacket packet = new DatagramPacket(this.buf, this.buf.length);
+                this.socket.receive(packet);
                 String received = new String(packet.getData(), 0, packet.getLength());
-                buf = new byte[256]; // clearing buffer
+                this.buf = new byte[256]; // clearing buffer
                 received = received.replace("\0", "");
                 System.out.println("Receiveing UDP packet...");
                 if (validateJson(received)) {
+                    System.out.println("Valid data!");
                     stopRunning();
-                    mainWindow.searchEndMessage();
+                    this.mainWindow.searchEndMessage();
                     break;
+                } else {
+                    System.out.println("Invalid data.");
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -53,22 +54,23 @@ public class DiscoverThread extends Thread {
 
     private boolean validateJson(String input) {
         try {
-            data = new Gson().fromJson(input, DiscoverData.class);
-            System.out.println("Valid data!");
-            return true;
+            this.data = Tools.discoverDataFromJson(input);
+            if (data.hostname != null && data.ip != null)
+                return true;
+            else
+                return false;
         } catch (Exception e) {
-            System.out.println("Invalid data.");
             return false;
         }
     }
 
     public void stopRunning() {
-        running = false;
-        socket.close();     // after stopping throws error, but works :)
+        this.running = false;
+        this.socket.close(); // after stopping throws error, but works :)
         System.out.println("Stopped listening for UDP discovery packet.");
     }
 
-    public DiscoverData getDisoverData() {
-        return data;
+    public DiscoverData getDiscoverData() {
+        return this.data;
     }
 }

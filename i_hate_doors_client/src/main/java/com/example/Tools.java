@@ -10,4 +10,16 @@ public class Tools {
         Gson gson = builder.create();
         return gson.toJson(obj);
     }
+
+    public static Settings settingsFromJson(String json) {
+        return new Gson().fromJson(json, Settings.class);
+    }
+
+    public static DiscoverData discoverDataFromJson(String json) {
+        return new Gson().fromJson(json, DiscoverData.class);
+    }
+
+    public static Message messageFromJson(String json) {
+        return new Gson().fromJson(json, Message.class);
+    }
 }

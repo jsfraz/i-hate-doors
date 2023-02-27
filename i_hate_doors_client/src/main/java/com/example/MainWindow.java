@@ -71,9 +71,14 @@ public class MainWindow extends JFrame {
     private boolean bindingMuteSound = false;
     private boolean bindingToggle = false;
 
+    private MqttThread mqttThread;
+
+    private final String commandMqttTopic = "sensor/commands";
+    private final String valuesMqttTopic = "sensor/values";
+
     // regex pattern:
     // https://mkyong.com/regular-expressions/how-to-validate-ip-address-with-regular-expression/
-    private static final Pattern ipv4Pattern = Pattern
+    private final Pattern ipv4Pattern = Pattern
             .compile("^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])(\\.(?!$)|$)){4}$");
 
     // constructor
@@ -145,7 +150,7 @@ public class MainWindow extends JFrame {
         panel1.add(findButton);
         testButton = new JButton("Test");
         testButton.addActionListener(e -> handleTestButton(e));
-        Matcher matcher = ipv4Pattern.matcher(ipField.getText());
+        Matcher matcher = ipv4Pattern.matcher(SettingsSingleton.GetInstance().getIp());
         if (matcher.matches() == false)
             testButton.setEnabled(false);
         panel1.add(testButton);
@@ -212,7 +217,9 @@ public class MainWindow extends JFrame {
         okButton = new JButton("OK");
         okButton.addActionListener(e -> handleOkButton(e));
         panel5.add(okButton);
-        onOffButton = new JButton("###");
+        onOffButton = new JButton("   ");
+        onOffButton.setEnabled(false);
+        onOffButton.addActionListener(e -> handleOnOffButton(e));
         panel5.add(onOffButton);
         exitButton = new JButton("Exit");
         exitButton.addActionListener(e -> handleExitButton(e));
@@ -243,6 +250,13 @@ public class MainWindow extends JFrame {
         setLocationRelativeTo(null);
         setVisible(true);
         requestFocus();
+
+        if (matcher.matches()) {
+            mqttThread = new MqttThread(SettingsSingleton.GetInstance().getIp(), valuesMqttTopic, this);
+            mqttThread.start();
+        } else {
+            setOnOffButtonStatus(Status.off);
+        }
     }
 
     // minimalizes app on tray
@@ -300,16 +314,19 @@ public class MainWindow extends JFrame {
             SettingsSingleton.GetInstance().setIp(ipField.getText());
             try {
                 SettingsSingleton.GetInstance().saveSettings();
-
-                JOptionPane.showMessageDialog(this, "IP adress successfully set.", "Success",
+                if (mqttThread != null) {
+                    if (mqttThread.isAlive())
+                        mqttThread.stopRunning();
+                }
+                JOptionPane.showMessageDialog(null, "IP adress successfully set.", "Success",
                         JOptionPane.INFORMATION_MESSAGE);
                 ipOkButton.setEnabled(false);
             } catch (IOException e) {
                 e.printStackTrace();
-                JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         } else {
-            JOptionPane.showMessageDialog(this, "IP adress is not valid.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "IP adress is not valid.", "Error", JOptionPane.ERROR_MESSAGE);
             ipField.setText(SettingsSingleton.GetInstance().getIp());
             ipOkButton.setEnabled(false);
         }
@@ -339,8 +356,7 @@ public class MainWindow extends JFrame {
 
     public void searchEndMessage() {
         searchDialog.dispose();
-        discoverThread.stopRunning();
-        DiscoverData data = discoverThread.getDisoverData();
+        DiscoverData data = discoverThread.getDiscoverData();
         if (data != null) {
             String message = "";
             String title = "";
@@ -357,6 +373,10 @@ public class MainWindow extends JFrame {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+                if (mqttThread != null) {
+                    if (mqttThread.isAlive())
+                        mqttThread.stopRunning();
+                }
                 message = "Found!";
                 title = "Info";
                 messageType = JOptionPane.INFORMATION_MESSAGE;
@@ -364,7 +384,8 @@ public class MainWindow extends JFrame {
                 ipField.setCaretPosition(ipField.getText().length());
             }
             sendBroadcastEndMessage(data.ip);
-            JOptionPane.showMessageDialog(this, message, title, messageType);
+            JOptionPane.showMessageDialog(null, message, title, messageType);
+            testButton.setEnabled(true);
         }
         findButton.setEnabled(true);
     }
@@ -372,10 +393,10 @@ public class MainWindow extends JFrame {
     // send MQTT message for end of discovery broadcasting
     private void sendBroadcastEndMessage(String ip) {
         try {
-            new Mqtt(ip, "sensor/commands")
+            new Mqtt(ip, commandMqttTopic)
                     .publish(Tools.objectToJson(new Message(MessageType.stopBroadcast)));
         } catch (MqttException e) {
-            JOptionPane.showMessageDialog(this,
+            JOptionPane.showMessageDialog(null,
                     "Device was found but connecting to MQTT broker failed. Verify that service is running or check your configuration.",
                     "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
@@ -385,7 +406,7 @@ public class MainWindow extends JFrame {
     // test button
     private void handleTestButton(ActionEvent event) {
         testButton.setEnabled(false);
-        boolean success = new Mqtt(SettingsSingleton.GetInstance().getIp(), "sensor/commands").testConnection();
+        boolean success = new Mqtt(ipField.getText(), "sensor/commands").testConnection();
         String title;
         String message;
         int icon;
@@ -398,7 +419,7 @@ public class MainWindow extends JFrame {
             message = "Unable to connect to MQTT broker. Verify that service is running or check your configuration.";
             icon = JOptionPane.ERROR_MESSAGE;
         }
-        JOptionPane.showMessageDialog(this, message, title, icon);
+        JOptionPane.showMessageDialog(null, message, title, icon);
         testButton.setEnabled(true);
     }
 
@@ -673,6 +694,38 @@ public class MainWindow extends JFrame {
     // ok button
     private void handleOkButton(ActionEvent event) {
         minimizeToTray();
+    }
+
+    // on/off button (start/stop mqtt thread)
+    private void handleOnOffButton(ActionEvent event) {
+        onOffButton.setEnabled(false);
+        if (mqttThread != null) {
+            if (mqttThread.isAlive()) {
+                mqttThread.stopRunning();
+            } else {
+                mqttThread = new MqttThread(SettingsSingleton.GetInstance().getIp(), valuesMqttTopic, this);
+                mqttThread.start();
+            }
+        } else {
+            Matcher matcher = ipv4Pattern.matcher(SettingsSingleton.GetInstance().getIp());
+            if (matcher.matches()) {
+                mqttThread = new MqttThread(SettingsSingleton.GetInstance().getIp(), valuesMqttTopic, this);
+                mqttThread.start();
+            } else {
+                onOffButton.setEnabled(true);
+            }
+        }
+    }
+
+    public void setOnOffButtonStatus(Status status) {
+        if (status == Status.on) {
+            onOffButton.setForeground(Color.green);
+            onOffButton.setText("ON");
+        } else {
+            onOffButton.setForeground(Color.red);
+            onOffButton.setText("OFF");
+        }
+        onOffButton.setEnabled(true);
     }
 
     // exit button
