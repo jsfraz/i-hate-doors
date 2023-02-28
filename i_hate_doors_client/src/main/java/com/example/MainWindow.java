@@ -76,6 +76,7 @@ public class MainWindow extends JFrame {
     private boolean bindingToggle = false;
 
     private MqttThread mqttThread;
+    private GlobalKeyListener globalKeyListener;
 
     private final String commandMqttTopic = "sensor/commands";
     private final String valuesMqttTopic = "sensor/values";
@@ -253,6 +254,7 @@ public class MainWindow extends JFrame {
             public void windowClosing(WindowEvent windowEvent) {
                 super.windowClosing(windowEvent);
                 minimizeToTray();
+                globalKeyListener.setEnabled(true);
             }
         });
 
@@ -283,7 +285,10 @@ public class MainWindow extends JFrame {
 
             System.exit(1);
         }
-        GlobalScreen.addNativeKeyListener(new GlobalKeyListener(this));
+
+        globalKeyListener = new GlobalKeyListener(this);
+        GlobalScreen.addNativeKeyListener(globalKeyListener);
+        globalKeyListener.setEnabled(false);
     }
 
     // minimalizes app on tray
@@ -325,6 +330,7 @@ public class MainWindow extends JFrame {
                     System.exit(0);
                 }
                 System.out.println("Opening from tray...");
+                globalKeyListener.setEnabled(false);
                 setVisible(true);
                 tray.remove(trayIcon);
             }

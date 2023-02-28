@@ -10,14 +10,16 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 public class GlobalKeyListener implements NativeKeyListener {
     private MainWindow mainWindow;
+    private boolean enabled;
 
     public GlobalKeyListener(MainWindow mainWindow) {
         this.mainWindow = mainWindow;
+        this.enabled = true;
     }
 
     public void nativeKeyReleased(NativeKeyEvent e) {
         Settings settings = SettingsSingleton.GetInstance().getSettings();
-        if (settings.toggleButton) {
+        if (settings.toggleButton && enabled) {
             if (KeyEvent.getKeyText(settings.toggleKey) == NativeKeyEvent.getKeyText(e.getKeyCode())) {
                 if (mainWindow.isMqttThreadNull() == false) {
                     if (mainWindow.isMqttThreadRunning()) {
@@ -33,5 +35,9 @@ public class GlobalKeyListener implements NativeKeyListener {
                 }
             }
         }
+    }
+
+    public void setEnabled(boolean value) {
+        this.enabled = value;
     }
 }
