@@ -56,7 +56,7 @@ public class Mqtt {
             }
 
             public void deliveryComplete(IMqttDeliveryToken token) {
-                System.out.println("Success.");
+                System.out.println("Message published.");
             }
         });
         this.client.connect(this.options);

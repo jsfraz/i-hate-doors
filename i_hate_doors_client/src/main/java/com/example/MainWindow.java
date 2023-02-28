@@ -38,6 +38,9 @@ import javax.swing.SwingConstants;
 
 import org.eclipse.paho.client.mqttv3.MqttException;
 
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.NativeHookException;
+
 public class MainWindow extends JFrame {
     private BufferedImage icon; // icon
 
@@ -54,11 +57,12 @@ public class MainWindow extends JFrame {
     private JRadioButton muteSoundRadio;
     private JButton muteSoundBindButton;
     // panel3
-    private JPanel panel4;
+    private JPanel panel3;
     private JCheckBox toggleBindCheckBox;
     private JButton toggleBindButton;
+    private JCheckBox playToggleSoundCheckBox;
     // panel4
-    private JPanel panel5;
+    private JPanel panel4;
     private JButton okButton;
     private JButton onOffButton;
     private JButton exitButton;
@@ -78,7 +82,7 @@ public class MainWindow extends JFrame {
 
     // regex pattern:
     // https://mkyong.com/regular-expressions/how-to-validate-ip-address-with-regular-expression/
-    private final Pattern ipv4Pattern = Pattern
+    public final Pattern ipv4Pattern = Pattern
             .compile("^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])(\\.(?!$)|$)){4}$");
 
     // constructor
@@ -193,37 +197,50 @@ public class MainWindow extends JFrame {
         tableConstraints1.gridy = 1;
         tableConstraints1.gridwidth = 2;
         // initializing and adding components
-        panel4 = new JPanel(new FlowLayout());
-        panel4.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createTitledBorder("Settings"),
+        panel3 = new JPanel(new GridBagLayout());
+        panel3.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createTitledBorder("Settings"),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5)));
-        add(panel4, tableConstraints1);
+        add(panel3, tableConstraints1);
+        GridBagConstraints tableConstraints3 = new GridBagConstraints();
+        tableConstraints3.fill = GridBagConstraints.HORIZONTAL;
         toggleBindCheckBox = new JCheckBox("Toggle key");
         toggleBindCheckBox.setSelected(SettingsSingleton.GetInstance().getToggleButton());
-        toggleBindCheckBox.addActionListener(e -> handleToggleKeyRadio(e));
-        panel4.add(toggleBindCheckBox);
+        toggleBindCheckBox.addActionListener(e -> handleToggleKeyCheckBox(e));
+        tableConstraints3.gridx = 0;
+        tableConstraints3.gridy = 0;
+        panel3.add(toggleBindCheckBox, tableConstraints3);
         toggleBindButton = new JButton("###");
         toggleBindButton.addActionListener(e -> handleToggleBindButton(e));
         if (!SettingsSingleton.GetInstance().getToggleButton())
             toggleBindButton.setEnabled(false);
-        panel4.add(toggleBindButton);
+        tableConstraints3.gridx = 1;
+        tableConstraints3.gridy = 0;
+        panel3.add(toggleBindButton, tableConstraints3);
+        playToggleSoundCheckBox = new JCheckBox("Play toggle sound");
+        playToggleSoundCheckBox.setSelected(SettingsSingleton.GetInstance().getPlayToggleSound());
+        playToggleSoundCheckBox.addActionListener(e -> handlePlayToggleSoundCheckBox(e));
+        tableConstraints3.gridx = 0;
+        tableConstraints3.gridy = 1;
+        tableConstraints3.gridwidth = 2;
+        panel3.add(playToggleSoundCheckBox, tableConstraints3);
 
         // TODO align to center
         // panel4 (ok and exit buttons)
         tableConstraints1.gridx = 0;
         tableConstraints1.gridy = 3;
         // initializing and adding components
-        panel5 = new JPanel(new FlowLayout());
-        add(panel5, tableConstraints1);
+        panel4 = new JPanel(new FlowLayout());
+        add(panel4, tableConstraints1);
         okButton = new JButton("OK");
         okButton.addActionListener(e -> handleOkButton(e));
-        panel5.add(okButton);
+        panel4.add(okButton);
         onOffButton = new JButton("   ");
         onOffButton.setEnabled(false);
         onOffButton.addActionListener(e -> handleOnOffButton(e));
-        panel5.add(onOffButton);
+        panel4.add(onOffButton);
         exitButton = new JButton("Exit");
         exitButton.addActionListener(e -> handleExitButton(e));
-        panel5.add(exitButton);
+        panel4.add(exitButton);
 
         // tray icon: https://github.com/evandromurilo/system_tray_example
         try {
@@ -257,6 +274,16 @@ public class MainWindow extends JFrame {
         } else {
             setOnOffButtonStatus(Status.off);
         }
+
+        try {
+            GlobalScreen.registerNativeHook();
+        } catch (NativeHookException ex) {
+            System.err.println("There was a problem registering the native hook.");
+            System.err.println(ex.getMessage());
+
+            System.exit(1);
+        }
+        GlobalScreen.addNativeKeyListener(new GlobalKeyListener(this));
     }
 
     // minimalizes app on tray
@@ -358,6 +385,17 @@ public class MainWindow extends JFrame {
         searchDialog.setVisible(true);
     }
 
+    // panel for search dialog
+    private JPanel getSearchDialgoPanel() {
+        JPanel dialogPanel = new JPanel();
+        dialogPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        this.add(dialogPanel);
+        JLabel loadingLabel = new JLabel(" Searching... ", JLabel.CENTER);
+        loadingLabel.setSize(50, 50);
+        dialogPanel.add(loadingLabel);
+        return dialogPanel;
+    }
+
     public void searchEndMessage() {
         discoverThread.stopRunning();
         searchDialog.dispose();
@@ -371,7 +409,7 @@ public class MainWindow extends JFrame {
                 title = "Warning";
                 messageType = JOptionPane.WARNING_MESSAGE;
             } else {
-                System.out.println("Adding " + data.hostname + " (" + data.ip + ").");
+                System.out.println("Adding " + data.hostname + " (" + data.ip + ")...");
                 SettingsSingleton.GetInstance().setIp(data.ip);
                 try {
                     SettingsSingleton.GetInstance().saveSettings();
@@ -453,12 +491,10 @@ public class MainWindow extends JFrame {
     // mute radio
     private void handleMuteRadio(ActionEvent event) {
         String command = event.getActionCommand();
-        if (command == "Microphone") {
+        if (command == "Microphone")
             SettingsSingleton.GetInstance().setMuteOption(MuteOption.microphone);
-        }
-        if (command == "Sound") {
+        if (command == "Sound")
             SettingsSingleton.GetInstance().setMuteOption(MuteOption.sound);
-        }
         try {
             SettingsSingleton.GetInstance().saveSettings();
         } catch (IOException e) {
@@ -475,7 +511,6 @@ public class MainWindow extends JFrame {
             pack();
             Color originalColor = muteMicBindButton.getBackground();
             muteMicBindButton.setBackground(Color.LIGHT_GRAY);
-            JFrame mainFrame = this;
             muteMicBindButton.addKeyListener(new KeyListener() {
 
                 @Override
@@ -496,7 +531,7 @@ public class MainWindow extends JFrame {
                                 e.printStackTrace();
                             }
                         } else
-                            JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
+                            JOptionPane.showMessageDialog(null, "Key is already used!", "Error",
                                     JOptionPane.ERROR_MESSAGE);
                     }
                     muteMicBindButton.setBackground(originalColor);
@@ -542,7 +577,6 @@ public class MainWindow extends JFrame {
             pack();
             Color originalColor = muteSoundBindButton.getBackground();
             muteSoundBindButton.setBackground(Color.LIGHT_GRAY);
-            JFrame mainFrame = this;
             muteSoundBindButton.addKeyListener(new KeyListener() {
 
                 @Override
@@ -563,7 +597,7 @@ public class MainWindow extends JFrame {
                                 e.printStackTrace();
                             }
                         } else
-                            JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
+                            JOptionPane.showMessageDialog(null, "Key is already used!", "Error",
                                     JOptionPane.ERROR_MESSAGE);
                     }
                     muteSoundBindButton.setBackground(originalColor);
@@ -602,7 +636,7 @@ public class MainWindow extends JFrame {
     }
 
     // toggle key radio
-    private void handleToggleKeyRadio(ActionEvent event) {
+    private void handleToggleKeyCheckBox(ActionEvent event) {
         if (toggleBindCheckBox.isSelected()) {
             SettingsSingleton.GetInstance().setToggleButton(true);
             toggleBindButton.setEnabled(true);
@@ -625,7 +659,6 @@ public class MainWindow extends JFrame {
             pack();
             Color originalColor = toggleBindButton.getBackground();
             toggleBindButton.setBackground(Color.LIGHT_GRAY);
-            JFrame mainFrame = this;
             toggleBindButton.addKeyListener(new KeyListener() {
 
                 @Override
@@ -646,7 +679,7 @@ public class MainWindow extends JFrame {
                                 e.printStackTrace();
                             }
                         } else
-                            JOptionPane.showMessageDialog(mainFrame, "Key is already used!", "Error",
+                            JOptionPane.showMessageDialog(null, "Key is already used!", "Error",
                                     JOptionPane.ERROR_MESSAGE);
                     }
                     toggleBindButton.setBackground(originalColor);
@@ -684,15 +717,16 @@ public class MainWindow extends JFrame {
         }
     }
 
-    // panel for search dialog
-    private JPanel getSearchDialgoPanel() {
-        JPanel dialogPanel = new JPanel();
-        dialogPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        this.add(dialogPanel);
-        JLabel loadingLabel = new JLabel(" Searching... ", JLabel.CENTER);
-        loadingLabel.setSize(50, 50);
-        dialogPanel.add(loadingLabel);
-        return dialogPanel;
+    private void handlePlayToggleSoundCheckBox(ActionEvent event) {
+        if (playToggleSoundCheckBox.isSelected())
+            SettingsSingleton.GetInstance().setPlayToggleSound(true);
+        else
+            SettingsSingleton.GetInstance().setPlayToggleSound(false);
+        try {
+            SettingsSingleton.GetInstance().saveSettings();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // ok button
@@ -719,6 +753,29 @@ public class MainWindow extends JFrame {
                 onOffButton.setEnabled(true);
             }
         }
+    }
+
+    public boolean isMqttThreadRunning() {
+        return mqttThread.isAlive();
+    }
+
+    public void startMqttThread() {
+        onOffButton.setEnabled(false);
+        mqttThread = new MqttThread(SettingsSingleton.GetInstance().getIp(), valuesMqttTopic, this);
+        mqttThread.start();
+        if (SettingsSingleton.GetInstance().getPlayToggleSound())
+            Tools.playSound(Sound.enable);
+    }
+
+    public void stopMqttThread() {
+        onOffButton.setEnabled(false);
+        mqttThread.stopRunning();
+        if (SettingsSingleton.GetInstance().getPlayToggleSound())
+            Tools.playSound(Sound.disable);
+    }
+
+    public boolean isMqttThreadNull() {
+        return mqttThread == null;
     }
 
     public void setOnOffButtonStatus(Status status) {

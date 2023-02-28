@@ -21,10 +21,10 @@ public class SettingsSingleton {
                 instance = new SettingsSingleton();
                 // read file
                 try {
-                    System.out.println("Reading settings from file...");
+                    System.out.println("Loading settings from file...");
                     String json = readSettingsJson();
                     instance.settings = Tools.settingsFromJson(json);
-                    System.out.println("Success.");
+                    System.out.println("Settings loaded.");
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
@@ -34,7 +34,7 @@ public class SettingsSingleton {
                 try {
                     System.out.println("Creating new settings file...");
                     instance.settings.saveSettings(settingsFile);
-                    System.out.println("Success.");
+                    System.out.println("File created.");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -57,7 +57,7 @@ public class SettingsSingleton {
     public void saveSettings() throws IOException {
         System.out.println("Saving settings file...");
         instance.settings.saveSettings(settingsFile);
-        System.out.println("Success.");
+        System.out.println("Settings saved.");
     }
 
     public String getIp() {
@@ -106,6 +106,14 @@ public class SettingsSingleton {
 
     public void setToggleKey(int value) {
         this.settings.toggleKey = value;
+    }
+
+    public boolean getPlayToggleSound() {
+        return this.settings.playToggleSound;
+    }
+
+    public void setPlayToggleSound(boolean value) {
+        this.settings.playToggleSound = value;
     }
 
     public Settings getSettings() {

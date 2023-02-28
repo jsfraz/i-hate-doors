@@ -10,6 +10,7 @@ public class Settings {
     public int muteSoundKey;
     public boolean toggleButton;
     public int toggleKey;
+    public boolean playToggleSound;
 
     public Settings() {
         this.ip = "";
@@ -18,6 +19,7 @@ public class Settings {
         this.muteSoundKey = 118;
         this.toggleButton = true;
         this.toggleKey = 119;
+        this.playToggleSound = true;
     }
 
     public void saveSettings(String settingsFile) throws IOException {

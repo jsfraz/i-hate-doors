@@ -90,7 +90,7 @@ public class MqttThread extends Thread {
         try {
             System.out.println("Connecting to MQTT broker...");
             this.client.connect(this.options);
-            System.out.println("Success.");
+            System.out.println("Connected.");
             this.mainWindow.setOnOffButtonStatus(Status.on);
             try {
                 this.client.subscribe(this.topic, this.qos);
@@ -125,7 +125,7 @@ public class MqttThread extends Thread {
     }
 
     public void stopRunning() {
-        System.out.println("Disconnected from MQTT broker...");
+        System.out.println("Disconnecting from MQTT broker...");
         this.running = false;
         /*
         try {
@@ -139,6 +139,7 @@ public class MqttThread extends Thread {
         } catch (MqttException e) {
             e.printStackTrace();
         }
+        System.out.println("Disconnected.");
         this.mainWindow.setOnOffButtonStatus(Status.off);
     }
 }
