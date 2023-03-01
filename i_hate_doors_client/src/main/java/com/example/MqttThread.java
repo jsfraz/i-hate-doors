@@ -2,6 +2,7 @@ package com.example;
 
 import java.awt.AWTException;
 import java.awt.Robot;
+import java.awt.event.KeyEvent;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -65,12 +66,12 @@ public class MqttThread extends Thread {
                             Robot robot = new Robot();
                             Settings setings = SettingsSingleton.GetInstance().getSettings();
                             if (setings.muteOption == MuteOption.microphone) {
-                                System.out.println("Muting microphone...");
+                                System.out.println("Pressing " + KeyEvent.getKeyText(setings.muteMicKey) + "...");
                                 robot.keyPress(setings.muteMicKey);
                                 robot.keyRelease(setings.muteMicKey);
                             }
                             if (setings.muteOption == MuteOption.sound) {
-                                System.out.println("Muting sound...");
+                                System.out.println("Pressing " + KeyEvent.getKeyText(setings.muteSoundKey) + "...");
                                 robot.keyPress(setings.muteSoundKey);
                                 robot.keyRelease(setings.muteSoundKey);
                             }
@@ -128,12 +129,12 @@ public class MqttThread extends Thread {
         System.out.println("Disconnecting from MQTT broker...");
         this.running = false;
         /*
-        try {
-            this.client.unsubscribe(this.topic);
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
-        */
+         * try {
+         * this.client.unsubscribe(this.topic);
+         * } catch (MqttException e) {
+         * e.printStackTrace();
+         * }
+         */
         try {
             this.client.disconnect();
         } catch (MqttException e) {
