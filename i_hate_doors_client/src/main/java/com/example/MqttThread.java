@@ -75,6 +75,11 @@ public class MqttThread extends Thread {
                                 robot.keyPress(setings.muteSoundKey);
                                 robot.keyRelease(setings.muteSoundKey);
                             }
+                            if (setings.unpredictableMode && doorMessage.type == MessageType.doorOpened) {
+                                stopRunning();
+                                if (setings.playToggleSound)
+                                    Tools.playSound(Sound.disable);
+                            }
                         } catch (AWTException e) {
                             e.printStackTrace();
                         }
@@ -110,6 +115,14 @@ public class MqttThread extends Thread {
             // interestingly, when there is not method in loop, it never ends even if
             // running is false
         }
+        System.out.println("Disconnecting from MQTT broker...");
+        try {
+            this.client.disconnect();
+            System.out.println("Disconnected.");
+            this.mainWindow.setOnOffButtonStatus(Status.off);
+        } catch (MqttException e) {
+            e.printStackTrace();
+        }
         System.out.println("MQTT thread stopped.");
     }
 
@@ -126,21 +139,6 @@ public class MqttThread extends Thread {
     }
 
     public void stopRunning() {
-        System.out.println("Disconnecting from MQTT broker...");
         this.running = false;
-        /*
-         * try {
-         * this.client.unsubscribe(this.topic);
-         * } catch (MqttException e) {
-         * e.printStackTrace();
-         * }
-         */
-        try {
-            this.client.disconnect();
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
-        System.out.println("Disconnected.");
-        this.mainWindow.setOnOffButtonStatus(Status.off);
     }
 }

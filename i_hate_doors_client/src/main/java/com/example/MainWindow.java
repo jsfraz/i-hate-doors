@@ -61,6 +61,7 @@ public class MainWindow extends JFrame {
     private JCheckBox toggleBindCheckBox;
     private JButton toggleBindButton;
     private JCheckBox playToggleSoundCheckBox;
+    private JCheckBox unpredictableModeCheckBox;
     // panel4
     private JPanel panel4;
     private JButton okButton;
@@ -212,8 +213,6 @@ public class MainWindow extends JFrame {
         panel3.add(toggleBindCheckBox, tableConstraints3);
         toggleBindButton = new JButton("###");
         toggleBindButton.addActionListener(e -> handleToggleBindButton(e));
-        if (!SettingsSingleton.GetInstance().getToggleButton())
-            toggleBindButton.setEnabled(false);
         tableConstraints3.gridx = 1;
         tableConstraints3.gridy = 0;
         panel3.add(toggleBindButton, tableConstraints3);
@@ -224,6 +223,17 @@ public class MainWindow extends JFrame {
         tableConstraints3.gridy = 1;
         tableConstraints3.gridwidth = 2;
         panel3.add(playToggleSoundCheckBox, tableConstraints3);
+        if (!SettingsSingleton.GetInstance().getToggleButton()) {
+            toggleBindButton.setEnabled(false);
+            playToggleSoundCheckBox.setEnabled(false);
+        }
+        unpredictableModeCheckBox = new JCheckBox("Unpredictable mode");
+        unpredictableModeCheckBox.setSelected(SettingsSingleton.GetInstance().getUnpredictableMode());
+        unpredictableModeCheckBox.addActionListener(e -> handleUnpredictableModeCheckBox(e));
+        tableConstraints3.gridx = 0;
+        tableConstraints3.gridy = 2;
+        tableConstraints3.gridwidth = 2;
+        panel3.add(unpredictableModeCheckBox, tableConstraints3);
 
         // TODO align to center
         // panel4 (ok and exit buttons)
@@ -254,7 +264,6 @@ public class MainWindow extends JFrame {
             public void windowClosing(WindowEvent windowEvent) {
                 super.windowClosing(windowEvent);
                 minimizeToTray();
-                globalKeyListener.setEnabled(true);
             }
         });
 
@@ -338,6 +347,7 @@ public class MainWindow extends JFrame {
 
         popup.addActionListener(listener);
         trayIcon.addActionListener(listener);
+        globalKeyListener.setEnabled(true);
     }
 
     // ipOk button
@@ -728,6 +738,18 @@ public class MainWindow extends JFrame {
             SettingsSingleton.GetInstance().setPlayToggleSound(true);
         else
             SettingsSingleton.GetInstance().setPlayToggleSound(false);
+        try {
+            SettingsSingleton.GetInstance().saveSettings();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleUnpredictableModeCheckBox(ActionEvent event) {
+        if (unpredictableModeCheckBox.isSelected())
+            SettingsSingleton.GetInstance().setUnpredictableMode(true);
+        else
+            SettingsSingleton.GetInstance().setUnpredictableMode(false);
         try {
             SettingsSingleton.GetInstance().saveSettings();
         } catch (IOException e) {

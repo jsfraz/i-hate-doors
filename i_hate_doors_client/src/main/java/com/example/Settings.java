@@ -11,6 +11,7 @@ public class Settings {
     public boolean toggleButton;
     public int toggleKey;
     public boolean playToggleSound;
+    public boolean unpredictableMode;
 
     public Settings() {
         this.ip = "";

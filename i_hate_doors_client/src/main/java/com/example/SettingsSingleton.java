@@ -116,6 +116,14 @@ public class SettingsSingleton {
         this.settings.playToggleSound = value;
     }
 
+    public boolean getUnpredictableMode() {
+        return this.settings.unpredictableMode;
+    }
+
+    public void setUnpredictableMode(boolean value) {
+        this.settings.unpredictableMode = value;
+    }
+
     public Settings getSettings() {
         return this.settings;
     }
