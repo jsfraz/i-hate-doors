@@ -140,5 +140,6 @@ public class MqttThread extends Thread {
 
     public void stopRunning() {
         this.running = false;
+        mainWindow.setOnOffButtonStatus(Status.off);
     }
 }
