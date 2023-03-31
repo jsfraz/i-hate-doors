@@ -1,0 +1,9 @@
+sudo apt update
+sudo apt upgrade
+sudo systemctl enable mosquitto
+sudo nano /etc/mosquitto/mosquitto.conf
+
+listener 1883 0.0.0.0
+allow_anonymous true
+
+sudo systemctl restart mosquitto
