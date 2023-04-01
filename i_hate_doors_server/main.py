@@ -9,30 +9,38 @@ import sys
 import time
 import json
 import random
+import socket
 import RPi.GPIO as GPIO
 from message import Message
 from threading import Thread
 from message_type import MessageType
+from discover_data import DicoverData
 from paho.mqtt import client as mqtt_client
 
 PIN_TRIGGER = 7     # HC-SR04 trigger pin
 PIN_ECHO = 11       # HC-SR04 echo pin
-PIN_BUTTON = 13     # start/stop button pin
+PIN_START_STOP_BUTTON = 13     # start/stop button pin
 PIN_PIEZO = 15      # piezo pin
+PIN_PAIR_BUTTON = 19        # pair button pin
 
 SERVER = 'localhost'        # mqtt broker address
 PORT = 1883     # mqtt broker port
-TOPIC = 'sensor/values'     # mqtt topic
+TOPIC = 'sensor/values'     # mqtt topic for sensor values
 CLIENT_ID = f'python-mqtt-{random.randint(0, 1000)}'        # mqtt client id
 
 OPENED_MIN_CM = 10      # greater distance will be considered as opened door
+
+UDP_PORT = 52375     # UDP port for pairing
+MAX_PAIR_ATTEMPTS = 30      # max pair packet count to send before stopping
+COMMAND_TOPIC = 'sensor/commands'       # for commands from client
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(PIN_TRIGGER, GPIO.OUT)
 GPIO.setup(PIN_ECHO, GPIO.IN)
 GPIO.output(PIN_TRIGGER, GPIO.LOW)
-GPIO.setup(PIN_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_START_STOP_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(PIN_PIEZO, GPIO.OUT)
+GPIO.setup(PIN_PAIR_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 print('Waiting for sensor to settle...')
 time.sleep(2)
@@ -41,13 +49,13 @@ print('Done.')
 # piezo beep
 
 
-def beep(count):
+def beep(count, duration):
     pin = GPIO.PWM(PIN_PIEZO, 520)      # pwm instance
     for x in range(count):
         pin.start(50)       # start with duty cycle 50
         pin.ChangeFrequency(520)
         GPIO.output(PIN_PIEZO, GPIO.HIGH)
-        time.sleep(0.5)
+        time.sleep(duration)
         pin.stop()
         GPIO.output(PIN_PIEZO, GPIO.LOW)
         if x != count - 1:
@@ -59,7 +67,7 @@ def beep(count):
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print('Connected to MQTT broker.')
-        beep(1)
+        beep(1, 0.25)
     else:
         print('Failed to connect to MQTT broker, return code', rc)
         beep(3)
@@ -68,7 +76,7 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     print('Disconnected from MQTT broker, return code', rc)
-    beep(3)
+    beep(3, 0.25)
 
 
 def on_publish(client, userdata, result):
@@ -148,7 +156,7 @@ def start_mqtt():
         print('Error:', e)
     finally:
         print('Stopped.')
-        beep(2)
+        beep(2, 0.25)
 
 
 global run_mqtt
@@ -159,11 +167,11 @@ mqtt_thread = Thread(target=start_mqtt, name='mqtt')
 mqtt_thread.start()
 
 
-def start_button_listener():
+def start_stop_button_listener():
     pressed = False
     while True:
         # button is pressed when pin is LOW
-        if not GPIO.input(PIN_BUTTON):
+        if not GPIO.input(PIN_START_STOP_BUTTON):
             if not pressed:
                 print('On/off button pressed!')
                 pressed = True
@@ -175,7 +183,7 @@ def start_button_listener():
                 else:
                     print('Starting...')
                     run_mqtt = True
-                    mqtt_thread = mqtt_thread = Thread(
+                    mqtt_thread = Thread(
                         target=start_mqtt, name='mqtt')
                     mqtt_thread.start()
                 time.sleep(2)
@@ -185,7 +193,91 @@ def start_button_listener():
         time.sleep(0.1)
 
 
-button_thread = Thread(target=start_button_listener, name='button')
+start_stop_button_thread = Thread(
+    target=start_stop_button_listener, name='startStopButton')
+
+
+def mqtt_subscribe():
+    def on_message(client, userdata, msg):
+        print(f'Received message from `{msg.topic}` topic')
+
+        # json string to object: https://stackoverflow.com/questions/15476983/deserialize-a-json-string-to-an-object-in-python
+        def as_message(dct):
+            return Message(dct['type'])
+
+        data = json.loads(msg.payload.decode(), object_hook=as_message)
+        if data.type == MessageType.stopBroadcast:
+            global broadcasting
+            broadcasting = False
+
+    mqtt.subscribe(COMMAND_TOPIC)
+    mqtt.on_message = on_message
+
+
+def broadcast_pair_packet():
+    global broadcasting
+    broadcasting = True
+
+    # https://tecadmin.net/python-how-to-find-local-ip-address/
+    def get_local_ip():
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # doesn't even have to be reachable
+            s.connect(('192.255.255.255', 1))
+            ip = s.getsockname()[0]
+        except:
+            ip = '127.0.0.1'
+        finally:
+            s.close()
+        print(ip)
+        return ip
+
+    # https://github.com/ninedraft/python-udp
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    s.settimeout(1)
+    obj = DicoverData(socket.gethostname(), get_local_ip())
+    i = 0
+    while True:
+        if i == MAX_PAIR_ATTEMPTS or broadcasting == False:
+            break
+
+        print('Broadcasting pairing packet ' + str(i + 1) + '.')
+        s.sendto(str.encode(json.dumps(obj.__dict__)),
+                 ('255.255.255.255', UDP_PORT))
+
+        i += 1
+        time.sleep(1)
+    print('Pairing stopped.')
+    broadcasting = False
+
+
+global broadcasting
+broadcasting = False
+broadcast_thread = Thread(target=broadcast_pair_packet, name='broadcast')
+
+
+def pair_button_listener():
+    pressed = False
+    while True:
+        # button is pressed when pin is LOW
+        if not GPIO.input(PIN_PAIR_BUTTON):
+            if not pressed:
+                if broadcasting == False:
+                    broadcast_thread = Thread(
+                        target=broadcast_pair_packet, name='broadcast')
+                    broadcast_thread.start()
+                    beep(1, 0.75)
+        # button not pressed (or released)
+        else:
+            pressed = False
+        time.sleep(0.1)
+
+
+pair_button_thread = Thread(target=pair_button_listener, name='pairButton')
+
 time.sleep(2)
 if mqtt_thread.is_alive():
-    button_thread.start()
+    start_stop_button_thread.start()
+    mqtt_subscribe()
+    pair_button_thread.start()
