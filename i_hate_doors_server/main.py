@@ -3,13 +3,15 @@
 # https://pimylifeup.com/raspberry-pi-distance-sensor/
 # https://www.emqx.com/en/blog/how-to-use-mqtt-in-python
 # https://roboticsbackend.com/raspberry-pi-gpio-interrupts-tutorial/
+# https://raspberrypihq.com/use-a-push-button-with-raspberry-pi-gpio/
 # https://www.maketecheasier.com/piezo-speaker-raspberry-pi/
+# https://howchoo.com/g/mwnlytk3zmm/how-to-add-a-power-button-to-your-raspberry-pi
 
-import sys
 import time
 import json
 import random
 import socket
+import subprocess
 import RPi.GPIO as GPIO
 from message import Message
 from threading import Thread
@@ -22,6 +24,7 @@ PIN_ECHO = 11       # HC-SR04 echo pin
 PIN_START_STOP_BUTTON = 13     # start/stop button pin
 PIN_PIEZO = 15      # piezo pin
 PIN_PAIR_BUTTON = 19        # pair button pin
+PIN_SHUTDOWN_BUTTON = 5     # on/off pin
 
 SERVER = 'localhost'        # mqtt broker address
 PORT = 1883     # mqtt broker port
@@ -41,6 +44,7 @@ GPIO.output(PIN_TRIGGER, GPIO.LOW)
 GPIO.setup(PIN_START_STOP_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(PIN_PIEZO, GPIO.OUT)
 GPIO.setup(PIN_PAIR_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_SHUTDOWN_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 print('Waiting for sensor to settle...')
 time.sleep(2)
@@ -50,16 +54,19 @@ print('Done.')
 
 
 def beep(count, duration):
-    pin = GPIO.PWM(PIN_PIEZO, 520)      # pwm instance
-    for x in range(count):
-        pin.start(50)       # start with duty cycle 50
-        pin.ChangeFrequency(520)
-        GPIO.output(PIN_PIEZO, GPIO.HIGH)
-        time.sleep(duration)
-        pin.stop()
-        GPIO.output(PIN_PIEZO, GPIO.LOW)
-        if x != count - 1:
-            time.sleep(0.3)
+    try:
+        pin = GPIO.PWM(PIN_PIEZO, 520)      # pwm instance
+        for x in range(count):
+            pin.start(50)       # start with duty cycle 50
+            pin.ChangeFrequency(520)
+            GPIO.output(PIN_PIEZO, GPIO.HIGH)
+            time.sleep(duration)
+            pin.stop()
+            GPIO.output(PIN_PIEZO, GPIO.LOW)
+            if x != count - 1:
+                time.sleep(0.3)
+    except Exception as e:
+        print(e)
 
 # mqtt callback methods
 
@@ -71,7 +78,6 @@ def on_connect(client, userdata, flags, rc):
     else:
         print('Failed to connect to MQTT broker, return code', rc)
         beep(3)
-        sys.exit()
 
 
 def on_disconnect(client, userdata, rc):
@@ -275,6 +281,24 @@ def pair_button_listener():
 
 
 pair_button_thread = Thread(target=pair_button_listener, name='pairButton')
+
+def shutdown_button_listener():
+    pressed = False
+    while True:
+        # button is pressed when pin is LOW
+        if not GPIO.input(PIN_SHUTDOWN_BUTTON):
+            if not pressed:
+                print('Shutting down...')
+                beep(2, 0.75)
+                # must be run as superuser!!!
+                subprocess.call(['shutdown', '-h', 'now'], shell=False)
+        # button not pressed (or released)
+        else:
+            pressed = False
+        time.sleep(0.1)
+
+shutdown_button_thread = Thread(target=shutdown_button_listener, name='shutdownButton')
+shutdown_button_thread.start()
 
 time.sleep(2)
 if mqtt_thread.is_alive():
