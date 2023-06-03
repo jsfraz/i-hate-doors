@@ -77,7 +77,7 @@ def on_connect(client, userdata, flags, rc):
         beep(1, 0.25)
     else:
         print('Failed to connect to MQTT broker, return code', rc)
-        beep(3)
+        beep(3, 0.75)
 
 
 def on_disconnect(client, userdata, rc):
