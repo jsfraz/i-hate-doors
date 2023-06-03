@@ -1,5 +1,30 @@
 # I really hate doors (and people)
 You know that feeling when you're on a Discord call, you don't want to be disturbed, but someone constantly feels the need to come and disturb you? This simple project can put you out of your misery.
+## How it works?
+To detect room entry, you place a Raspberry Pi Zero with an ultrasonic sensor above the door. Whenever the door closes/opens, the Raspberry sends a message to the MQTT broker (itself). The desktop client then responds to this message by virtually pressing the mute/unmute key.
+### Client
+<img src="images/client.png" height="200">
+
+### Server
+<img src="images/sketch.png" height="300">
+
+#### Buttons
+- top button
+  - used to initialize pairing with client (lasts 30 seconds)
+  - client waits for server to send pairing packet
+- middle button
+  - on/off
+- bottom button
+  - shuts down Raspberry Pi
+#### Beep codes
+|                 |                                  |
+|-----------------|----------------------------------|
+| **one short**   | connected to MQTT broker         |
+| **two short**   | server stopped                   |
+| **three short** | disconnected from MQTT broker    |
+| **one long**    | pairing started                  |
+| **two long**    | shutting down                    |
+| **three long**  | failed to connect to MQTT broker |
 ## Installation
 ### Server
 #### Installing and configuring MQTT server
@@ -46,37 +71,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable ihatedoors.service
 sudo systemctl start ihatedoors.service
 ```
-## How it works?
-To detect room entry, you place a Raspberry Pi Zero with an ultrasonic sensor above the door. Whenever the door closes/opens, the Raspberry sends a message to the MQTT broker (itself). The desktop client then responds to this message by virtually pressing the mute/unmute key.
-### Server
-#### Schema
-<img src="images/sketch.png" height="300">
-
-#### Buttons
-- top button
-  - used to initialize pairing with client (lasts 30 seconds)
-  - client waits for server to send pairing packet
-- middle button
-  - on/off
-- bottom button
-  - shuts down Raspberry Pi
-#### Beep codes
-- one short
-  - connected to MQTT broker
-- two short
-  - server stopped
-- three short
-  - disconnected from MQTT broker
-- one long
-  - pairing started
-- two long
-  - shutting down
-- three long
-  - failed to connect to MQTT broker
-
-### Client
-<img src="images/client.png" height="200">
-
 ## TODO
 - release client executable
 - power from lithium battery
